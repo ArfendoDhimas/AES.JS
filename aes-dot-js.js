@@ -180,12 +180,13 @@ class AES{
 					}
 				}
 			}
-			if (y > 0 && this.type_of_source_data == 'string')
+			if (y > 0)
 			{
-				// Add Padding to the last state
-				this.addPadding(state);
-				all_state[x++] = state;
-			} else {
+				if (this.type_of_source_data == 'string') 
+				{
+					// Add Padding to the last state
+					this.addPadding(state);
+				}
 				all_state[x++] = state;
 			}
 		}
@@ -235,9 +236,9 @@ class AES{
 			return null;
 
 		for (var i = 0; i < state.length; i++) {
-			// Remove Padding when encrypt 
 			if (i == state.length-1 && this.type_of_source_data == 'string')
 			{
+				// Remove Padding when encrypt
 				this.removePadding(state[i]);
 			}
 			for (var j = 0; j < state[i].length; j++) {
@@ -267,37 +268,28 @@ class AES{
 		let temp = [];
 		for (var i = 0; i < all_state.length; i++) 
 		{
+			if (all_state[i].length < (this.Nb*4))
+			{
+				result[i] = all_state[i];
+				continue;
+			}
 			let r = 0;
+			// Begin Encrypt
 			temp = this.transformAddRoundKey(all_state[i],r);
 			for (r = 1; r < this.Nr; r++) 
 			{
-
 				temp = this.tranformSubByte(temp);
-
-				if (all_state[i].length == 4*this.Nb)
-				{
-					temp = this.tranformShiftRows(temp);
-				}
-
-				if (all_state[i].length == 4*this.Nb)
-				{
-					temp = this.transformMixColumn(temp);
-				}
-
+				temp = this.tranformShiftRows(temp);
+				temp = this.transformMixColumn(temp);
 				temp = this.transformAddRoundKey(temp,r);
 			}
-
 			temp = this.tranformSubByte(temp);
-
-			if (all_state[i].length == 4*this.Nb)
-			{
-				temp = this.tranformShiftRows(temp);
-			}
-
+			temp = this.tranformShiftRows(temp);
 			temp = this.transformAddRoundKey(temp,r);
+			// End Encrypt
 			result[i] = temp;
 		}
-		return btoa(this.getRebuild(result)); //encode base64
+		return (this.type_of_source_data == 'string')?btoa(this.getRebuild(result)):this.getRebuild(result); //encode base64
 	}
 
 	decrypt(source_data)
@@ -307,36 +299,27 @@ class AES{
 		let result = [];
 		let temp;
 		const Nb = this.Nb;
-		for (var i = 0; i < all_state.length; i++) {
-			let r = this.Nr;
-			temp = this.transformAddRoundKey(all_state[i],r);
-
-			for (r = this.Nr-1; r > 0 ; r--) {
-
-				if (all_state[i].length == 4*this.Nb)
-				{
-					temp = this.tranformInversShiftRows(temp);
-				}
-
-				temp = this.tranformInversSubByte(temp);
-
-				temp = this.transformAddRoundKey(temp,r);
-
-				if (all_state[i].length == 4*this.Nb)
-				{
-					temp = this.transformInversMixColumn(temp);
-				}
+		for (var i = 0; i < all_state.length; i++) 
+		{
+			if (all_state[i].length < (this.Nb*4))
+			{
+				result[i] = all_state[i];
+				continue;
 			}
-
-			if (all_state[i].length == 4*this.Nb)
+			let r = this.Nr;
+			// Begin Decrypt
+			temp = this.transformAddRoundKey(all_state[i],r);
+			for (r = this.Nr-1; r > 0 ; r--) 
 			{
 				temp = this.tranformInversShiftRows(temp);
+				temp = this.tranformInversSubByte(temp);
+				temp = this.transformAddRoundKey(temp,r);
+				temp = this.transformInversMixColumn(temp);
 			}
-
+			temp = this.tranformInversShiftRows(temp);
 			temp = this.tranformInversSubByte(temp);
-
 			temp = this.transformAddRoundKey(temp,r);
-
+			// End Decrypt
 			result[i] = temp;
 		}
 		return this.getRebuild(result);
