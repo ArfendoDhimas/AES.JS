@@ -51,15 +51,10 @@ const RINJDAEL_PRESET = {
 }
 
 class AES{
-	constructor(string_key = '1234567890123456')
+	constructor(string_key = '1234567890abcdef')
 	{
 		this.Nb = 4; //Standar untuk semua panjang kunci
 		this.setKey(string_key);
-		this.setUsePadding(false);
-	}
-	setUsePadding(use_padding = true)
-	{
-		this.use_padding = use_padding;
 	}
 
 	setKey(string_key)
@@ -162,15 +157,21 @@ class AES{
 		var x = 0, y = 0;
 		if(this.type_of_source_data == 'object' || this.type_of_source_data == 'string')
 		{
+			var temp_data = source_data;
+			if(this.type_of_source_data == 'string' && this.type_process == 'decrypt')
+			{
+				temp_data = atob(source_data); //decode base64
+				this.M = temp_data.length;
+			}
 			for (var i = 0; i < this.M; i++) 
 			{
 				for (var j = 0; j < this.N; j++)
-				{
-					if (typeof source_data[i][j] != 'undefined')
+				{					
+					if (typeof temp_data[i][j] != 'undefined')
 					{
-						state[y++] = (typeof source_data[i][j] == 'string') ? source_data[i][j].charCodeAt(0) : parseInt(source_data[i][j]) ;
+						state[y++] = (typeof temp_data[i][j] == 'string') ? temp_data[i][j].charCodeAt(0) : parseInt(temp_data[i][j]);
 					}
-					
+
 					if (y == (this.Nb * 4))
 					{
 						all_state[x++] = state;
@@ -179,25 +180,13 @@ class AES{
 					}
 				}
 			}
-
-			// Use or not padding that state.length less then 16bytes
-			var use_padding = this.use_padding;
-			if (use_padding) 
+			if (y > 0 && this.type_of_source_data == 'string')
 			{
-				if (y != (this.Nb * 4) && y != 0) 
-				{
-					let temp_state = [];
-					for (var i = (this.Nb * 4)-1; i >= 0; i--) 
-					{
-						if (y > 0)
-							temp_state[i] = state[--y];
-						else
-							temp_state[i] = 0;
-					}
-					all_state[x] = temp_state;
-				}
+				// Add Padding to the last state
+				this.addPadding(state);
+				all_state[x++] = state;
 			} else {
-				if (y > 0) all_state[x++] = state;
+				all_state[x++] = state;
 			}
 		}
 		else 
@@ -246,6 +235,11 @@ class AES{
 			return null;
 
 		for (var i = 0; i < state.length; i++) {
+			// Remove Padding when encrypt 
+			if (i == state.length-1 && this.type_of_source_data == 'string')
+			{
+				this.removePadding(state[i]);
+			}
 			for (var j = 0; j < state[i].length; j++) {
 				if (this.type_of_source_data == 'object')
 				{
@@ -260,12 +254,14 @@ class AES{
 					cipher += String.fromCharCode(state[i][j]); 
 			}
 		}
+		
 		return cipher;
 	}
 
 	// this still use ECB Mode
 	encrypt(source_data)
 	{
+		this.type_process = 'encrypt';
 		const all_state = this.getAllStateFrom(source_data);
 		let result = [];
 		let temp = [];
@@ -301,11 +297,12 @@ class AES{
 			temp = this.transformAddRoundKey(temp,r);
 			result[i] = temp;
 		}
-		return this.getRebuild(result);
+		return btoa(this.getRebuild(result)); //encode base64
 	}
 
 	decrypt(source_data)
 	{
+		this.type_process = 'decrypt';
 		const all_state = this.getAllStateFrom(source_data);
 		let result = [];
 		let temp;
@@ -486,6 +483,30 @@ class AES{
 	getSubWord(state)
 	{
 		return this.tranformSubByte(state);
+	}
+
+	addPadding(state)
+	{
+		var x = this.Nb*4-state.length;
+		for (var i = 0; i < x; i++)
+		{
+			state.push(x);
+		}
+	}
+
+	removePadding(state)
+	{
+		var x = state.length-1;
+		var last_value = state[x];
+		var counter = 0;
+		while (state[x-1] == last_value)
+		{
+			state.pop();
+			x--;
+			counter++;
+		}
+		if (state[x] == counter+1)
+			state.pop();
 	}
 
 	derajat_gf(decimal_number)
