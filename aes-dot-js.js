@@ -242,25 +242,6 @@ class AES{
 		return all_state;
 	}
 
-	// #getStateCol(state,col)
-	// {
-	// 	let result = [];
-	// 	let Nb = this.#Nb;
-	// 	for (var i = 0; i < Nb; i++) {
-	// 		result[i] = state[col*Nb+i];
-	// 	}
-	// 	return result;
-	// }
-
-	// #getStateRow(state,row)
-	// {
-	// 	let result = [];
-	// 	for (var i = 0; i < 4; i++) {
-	// 		result[i] = state[row+i*4];
-	// 	}
-	// 	return result;
-	// }
-
 	#rebuild(state)
 	{
 		let cipher;
@@ -490,7 +471,6 @@ class AES{
 	#transformMixColumn(state)
 	{
 		let result = [];
-		const Nb = this.#Nb;
 		var k = 0;
 		for (var i = 0; i < state.length; i+=4) 
 		{
@@ -613,49 +593,9 @@ class AES{
 			counter++;
 		}
 		if (state[x] == counter+1)
+		{
 			state.pop();
-	}
-
-	#derajat_gf(decimal_number)
-	{
-		let result = 0;
-		decimal_number >>= 1;
-		while(decimal_number != 0)
-		{
-			decimal_number >>= 1;
-			result +=1;
 		}
-		return result;
-	}
-
-	#invers_perkalian_gf(decimal_number, mod = 0x1B) //0x1B = 27
-	{
-		if (decimal_number == 0)
-			return 0;
-
-		let v = mod;
-		let g1 = 1;
-		let g2 = 0;
-		let j = this.#derajat_gf(decimal_number) - 8;
-
-		while(decimal_number != 1)
-		{
-			if(j < 0)
-			{
-				let temp = decimal_number; decimal_number = v; v = temp;
-				temp = g1; g1 = g2; g2 = temp;
-				j = -j; 
-			}
-
-			decimal_number ^= v << j;
-			g1 ^= g2 << j;
-
-			decimal_number %= 256;
-			g1 %= 256;
-
-			j = this.#derajat_gf(decimal_number) - this.#derajat_gf(v);
-		}
-		return g1
 	}
 
 }
