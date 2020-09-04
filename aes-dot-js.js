@@ -43,10 +43,10 @@ const RINJDAEL_PRESET = {
 		return data[index];
 	},
 
-	RCON: function(index,j)
+	RCON: function(index)
 	{
 		const data = [[1,0,0,0],[2,0,0,0],[4,0,0,0],[8,0,0,0],[16,0,0,0],[32,0,0,0],[64,0,0,0],[128,0,0,0],[27,0,0,0],[54,0,0,0]];
-		return data[index][j];
+		return data[index];
 	}
 }
 
@@ -113,43 +113,43 @@ class AES{
 	#getExpansionKey()
 	{
 		const Nk = Math.floor(this.#key_length/4);
-		const Nb = this.#Nb;
-		const Nr = this.#Nr;
-
 		let expansion_key = [];
-		let key_schadule = [0,0,0,0];
-		let r = this.#key_length - this.#key.length;
+		let key_schadule = [];
 
-		var a = Nk-1;
-		for (var i = this.#key.length-1; i >= 0 ; i--) {
-			key_schadule[(i+r)%4] = this.#key.charCodeAt(i);
-			if ((i+r)%4 == 0) 
-			{
-				expansion_key[a--] = key_schadule;
-				key_schadule = [0,0,0,0];
-			}
-		}
-		var i = Nk;
-		while (i < Nb*(Nr+1))
+		// generate first expansion_key (4*Nk) from key
+		var i = 0;
+		do
 		{
-			let temp = expansion_key[i-1];
+			for (var j = 0; j < 4; j++)
+			{
+				key_schadule.push(this.#key.charCodeAt(4 * i + j));
+			}
+			expansion_key.push(key_schadule);
+			key_schadule = [];
+			i++;
+		} while(i < Nk);
+
+		// continue generate expansion_key
+		i = Nk;
+		while (i < this.#Nb * (this.#Nr + 1))
+		{
+			key_schadule = this.#copyArray(expansion_key[i-1]);
+
 			if (i % Nk == 0) 
 			{
-				const index_rcon = Math.floor(i/Nk-1);
-				temp = this.#getSubWord(this.#getRotWord(temp));
-				for (var j = 0; j < temp.length; j++) {
-					temp[j] ^= RINJDAEL_PRESET.RCON(index_rcon,j);
-				}
+				this.#getRotWord(key_schadule);
+				this.#getSubWord(key_schadule);
+				this.#operationXORForArray(key_schadule,RINJDAEL_PRESET.RCON(Math.floor(i/Nk)-1));
 			}
 			else if (Nk > 6 && i % Nk == 4)
 			{
-				temp = this.#tranformSubByte(temp);
+				this.#getSubWord(key_schadule);
 			}
-			let key_schadule = [0,0,0,0];
-			for (var j = 0; j < temp.length; j++) {
-				key_schadule[j] = temp[j] ^ expansion_key[i-Nk][j];
-			}
-			expansion_key[i++] = key_schadule;
+
+			this.#operationXORForArray(key_schadule, expansion_key[i-Nk]);
+			expansion_key.push(key_schadule);
+			key_schadule = [];
+			i++;
 		}
 		return expansion_key;
 	}
@@ -295,7 +295,7 @@ class AES{
 		// Sequance Process
 		for (var i = 0; i < all_state.length; i++) 
 		{
-			state = all_state[i];
+			state = this.#copyArray(all_state[i]);
 			if (all_state[i].length ==  (this.#Nb*4))
 			{
 				switch(this.getMode())
@@ -375,7 +375,7 @@ class AES{
 		// Sequence Process
 		for (var i = 0; i < all_state.length; i++) 
 		{
-			state = all_state[i];
+			state = this.#copyArray(all_state[i]);
 			if (all_state[i].length == (this.#Nb*4))
 			{
 				switch(this.#mode)
@@ -569,19 +569,19 @@ class AES{
 
 	#getRotWord(key_schadule)
 	{
-		let temp = [0,0,0,key_schadule[0]];
-		for (var i = 0; i < temp.length-1; i++)
-			temp[i] = key_schadule[i+1];
-		return temp;
+		let temp = key_schadule[0];
+		var i = 0;
+		while (i < key_schadule.length-1)
+		{
+			key_schadule[i] = key_schadule[i+1];
+			i++;
+		}
+		key_schadule[i] = temp;
 	}
 
-	#getSubWord(state)
+	#getSubWord(key_schadule)
 	{
-		let temp = [];
-		for (var i = 0; i < state.length; i++) {
-			temp[i] = RINJDAEL_PRESET.SBOX(state[i]);
-		}
-		return temp;
+		this.#tranformSubByte(key_schadule);
 	}
 
 	#operationXORForArray(array0, array1)
@@ -623,6 +623,16 @@ class AES{
 		{
 			state.pop();
 		}
+	}
+
+	#copyArray(array)
+	{
+		let temp = []
+		for (var i = 0; i < array.length; i++)
+		{
+			temp.push(array[i]);
+		}
+		return temp;
 	}
 
 }
