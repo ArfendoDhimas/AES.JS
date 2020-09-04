@@ -319,7 +319,13 @@ class AES{
 						this.#encryptModeECB(state);
 						break;
 					case 'CBC' :
-						this.#encryptModeCBC(state);
+						let vector = [];
+						if (i == 0)
+							vector = this.getInitialVector();
+						else
+							vector = result[i-1];
+						console.log(vector);
+						this.#encryptModeCBC(state,vector);
 						break;
 					default :
 						return null;
@@ -554,11 +560,13 @@ class AES{
 
 	operationXORForArray(array0, array1)
 	{
+		console.log(array0);
+		console.log(array1);
 		if (array0.length == array1.length)
 		{
 			for (var i = 0; i < array0.length; i++)
 			{
-				array0[i] ^= vactor[i];
+				array0[i] ^= array1[i];
 			}
 		}
 		else 
