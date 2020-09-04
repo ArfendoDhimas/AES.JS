@@ -51,42 +51,54 @@ const RINJDAEL_PRESET = {
 }
 
 class AES{
-	constructor(string_key = '1234567890abcdef')
+	constructor(mode = 'ECB', string_key = '1234567890abcdef', initial_vector = '1234567890abcdef')
 	{
 		this.Nb = 4; //Standar untuk semua panjang kunci
 		this.setKey(string_key);
+		this.setMode(mode);
+		if (mode == 'CBC')
+		{
+			this.setInitialVector(initial_vector);
+		}
 	}
 
 	setKey(string_key)
 	{
-		this.string_key = string_key;
-		this.key_length = this.getKeyLength();
-		this.Nr = this.getNumberRotation();
-		this.expansion_key = this.getExpansionKey();
-	}
-
-	getKeyLength()
-	{
-		if (this.string_key.length <= 16)
-			return 16;
-		else if (this.string_key.length <= 24)
-			return 24;
-		else if (this.string_key.length <= 32)
-			return 32;
-		else 
-			return 0;
+		switch(string_key.length)
+		{
+			case 16: case 24 : case 32 :
+				this.key_length = string_key.length;
+				break;
+			default :
+				this.key_length = 0;
+				break;
+		}
+		try 
+		{
+			if (this.key_length == 0)
+			{
+				throw 'Invalid key, key must be 128bits, 192bits or 256bits.';
+			}
+			this.string_key = string_key;
+			this.Nr = this.getNumberRotation();
+			this.expansion_key = this.getExpansionKey();
+		} 
+		catch (error) 
+		{
+			console.log(error);
+			return error;
+		}
 	}
 
 	getNumberRotation()
 	{
-		if (this.string_key.length <= 16)
-			return 10;
-		else if (this.string_key.length <= 24)
-			return 12;
-		else if (this.string_key.length <= 32)
-			return 14;
-		else 
-			return 0;
+		switch (this.key_length)
+		{
+			case 16 : return 10;
+			case 24 : return 12;
+			case 32 : return 14;
+			default : return 0; 
+		}
 	}
 
 	getExpansionKey()
@@ -131,6 +143,35 @@ class AES{
 			expansion_key[i++] = key_schadule;
 		}
 		return expansion_key;
+	}
+
+	getKey()
+	{
+		return this.string_key;
+	}
+
+	setMode(mode)
+	{
+		this.mode = mode;
+	}
+	getMode()
+	{
+		return this.mode;
+	}
+
+	setInitialVector(initial_vector)
+	{
+		var temp_iv = [];
+		for (var i = 0; i < initial_vector.length; i++)
+		{
+			temp_iv.push(initial_vector.charCodeAt(i));
+		}
+		this.initial_vector = temp_iv;
+	}
+
+	getInitialVector()
+	{
+		return this.initial_vector;
 	}
 	
 	getAllStateFrom(source_data){
@@ -264,32 +305,67 @@ class AES{
 	{
 		this.type_process = 'encrypt';
 		const all_state = this.getAllStateFrom(source_data);
+		let state = [];
 		let result = [];
-		let temp = [];
+		// sequance process
 		for (var i = 0; i < all_state.length; i++) 
 		{
-			if (all_state[i].length < (this.Nb*4))
+			state = all_state[i];
+			if (all_state[i].length ==  (this.Nb*4))
 			{
-				result[i] = all_state[i];
-				continue;
+				switch(this.getMode())
+				{
+					case 'ECB' :
+						this.#encryptModeECB(state);
+						break;
+					case 'CBC' :
+						this.#encryptModeCBC(state);
+						break;
+					default :
+						return null;
+				}			
+				result[i] = state;
+			} else {
+				result[i] = state;
 			}
-			let r = 0;
-			// Begin Encrypt
-			temp = this.transformAddRoundKey(all_state[i],r);
-			for (r = 1; r < this.Nr; r++) 
-			{
-				temp = this.tranformSubByte(temp);
-				temp = this.tranformShiftRows(temp);
-				temp = this.transformMixColumn(temp);
-				temp = this.transformAddRoundKey(temp,r);
-			}
-			temp = this.tranformSubByte(temp);
-			temp = this.tranformShiftRows(temp);
-			temp = this.transformAddRoundKey(temp,r);
-			// End Encrypt
-			result[i] = temp;
 		}
-		return (this.type_of_source_data == 'string')?btoa(this.getRebuild(result)):this.getRebuild(result); //encode base64
+		// Encode to base64 for type of source_data is string
+		return (this.type_of_source_data == 'string')?btoa(this.getRebuild(result)):this.getRebuild(result);
+	}
+
+	// Encrypt Mode ECB (Electronic Code Book)
+	#encryptModeECB(state)
+	{
+		let r = 0;
+		this.transformAddRoundKey(state,r);
+		for (r = 1; r < this.Nr; r++) 
+		{
+			this.tranformSubByte(state);
+			this.tranformShiftRows(state);
+			this.transformMixColumn(state);
+			this.transformAddRoundKey(state,r);
+		}
+		this.tranformSubByte(state);
+		this.tranformShiftRows(state);
+		this.transformAddRoundKey(state,r);
+	}
+
+	// Encrypt Mode CBC (Cipher Block Chaining)
+	#encryptModeCBC(state, vector)
+	{
+		let r = 0;
+		this.operationXORForArray(state,vector);
+		this.transformAddRoundKey(state,r);
+		for (r = 1; r < this.Nr; r++) 
+		{
+			this.tranformSubByte(state);
+			this.tranformShiftRows(state);
+			this.transformMixColumn(state);
+			this.transformAddRoundKey(state,r);
+		}
+		this.tranformSubByte(state);
+		this.tranformShiftRows(state);
+		this.transformAddRoundKey(state,r);
 	}
 
 	decrypt(source_data)
@@ -330,7 +406,7 @@ class AES{
 		for (var i = 0; i < state.length; i++) {
 			state[i] = RINJDAEL_PRESET.SBOX(state[i]);
 		}
-		return state;
+		// return state;
 	}
 
 	tranformInversSubByte(state)
@@ -356,7 +432,7 @@ class AES{
 				state[i+k*Nb] = temp;
 			}
 		}
-		return state;
+		// return state;
 	}
 
 	tranformInversShiftRows(state)
@@ -400,7 +476,11 @@ class AES{
 						^ state[(i+3+j)%4+i];
 			}
 		}
-		return result;
+		for (var i = 0; i < result.length; i++)
+		{
+			state[i] = result[i];
+		}
+		// return result;
 	}
 
 	transformInversMixColumn(state)
@@ -447,12 +527,12 @@ class AES{
 	
 	transformAddRoundKey(state, r)	//r for round
 	{
-		let result = [];
+		// let result = [];
 		let j = 0;
 		for (var i = 0; i < state.length; i++) {
-			result[i] = state[i] ^ this.expansion_key[r*4+Math.floor(i/4)][j++%4];
+			state[i] = state[i] ^ this.expansion_key[r*4+Math.floor(i/4)][j++%4];
 		}
-		return result;
+		// return result;
 	}
 
 	getRotWord(key_schadule)
@@ -465,7 +545,26 @@ class AES{
 
 	getSubWord(state)
 	{
-		return this.tranformSubByte(state);
+		let temp = [];
+		for (var i = 0; i < state.length; i++) {
+			temp[i] = RINJDAEL_PRESET.SBOX(state[i]);
+		}
+		return temp;
+	}
+
+	operationXORForArray(array0, array1)
+	{
+		if (array0.length == array1.length)
+		{
+			for (var i = 0; i < array0.length; i++)
+			{
+				array0[i] ^= vactor[i];
+			}
+		}
+		else 
+		{
+			console.log('Both of length is different');
+		}
 	}
 
 	addPadding(state)
