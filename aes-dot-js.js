@@ -242,7 +242,7 @@ class AES{
 		return all_state;
 	}
 
-	#rebuild(state)
+	#rebuild(all_state)
 	{
 		let cipher;
 		let temp;
@@ -261,16 +261,16 @@ class AES{
 		else
 			return null;
 
-		for (var i = 0; i < state.length; i++) {
-			if (i == state.length-1 && this.type_of_source_data == 'string')
+		for (var i = 0; i < all_state.length; i++) {
+			if (i == all_state.length-1 && this.type_of_source_data == 'string')
 			{
 				// Remove Padding when encrypt
-				this.#removePadding(state[i]);
+				this.#removePadding(all_state[i]);
 			}
-			for (var j = 0; j < state[i].length; j++) {
+			for (var j = 0; j < all_state[i].length; j++) {
 				if (this.type_of_source_data == 'object')
 				{
-					temp[n++] = state[i][j];
+					temp[n++] = all_state[i][j];
 					if (n == this.N) {
 						cipher[m++] = temp;
 						temp = [];
@@ -278,7 +278,7 @@ class AES{
 					}
 				}
 				else if (this.type_of_source_data == 'string')
-					cipher += String.fromCharCode(state[i][j]); 
+					cipher += String.fromCharCode(all_state[i][j]); 
 			}
 		}
 		
@@ -306,13 +306,12 @@ class AES{
 
 					case 'CBC' :
 							let vector = [];
-							if (i == 0)
+							switch (i)
 							{
-								vector = this.getInitialVector();
-							}
-							else
-							{
-								vector = cipher_blocks[i-1];
+								case 0 :
+										vector = this.getInitialVector(); break;
+								default :
+										vector = cipher_blocks[i-1]; break;
 							}
 							this.#encryptModeCBC(state,vector);
 							break;
@@ -376,16 +375,27 @@ class AES{
 		// Sequence Process
 		for (var i = 0; i < all_state.length; i++) 
 		{
+			state = all_state[i];
 			if (all_state[i].length == (this.#Nb*4))
 			{
-				state = all_state[i];
 				switch(this.#mode)
 				{
 					case 'ECB' :
-							this.#decryptModeEBC(state);
+							this.#decryptModeECB(state);
 							break;
+
 					case 'CBC' :
+							let vector = [];
+							switch(i)
+							{
+								case 0 : 
+										vector = this.getInitialVector(); break;
+								default :
+										vector = all_state[i-1]; break;
+							}
+							this.#decryptModeCBC(state,vector);
 							break;
+
 					default :
 							return null;
 				}
@@ -394,13 +404,13 @@ class AES{
 			else
 			{
 				decrypted_blocks[i] = all_state[i];
-				continue;
 			}
 		}
 		return this.#rebuild(decrypted_blocks);
 	}
 
-	#decryptModeEBC(state)
+	// Decrypt Mode ECB (Electronic Code Book)
+	#decryptModeECB(state)
 	{
 		let r = this.#Nr;
 		this.#transformAddRoundKey(state,r);
@@ -415,7 +425,24 @@ class AES{
 		this.#tranformInversSubByte(state);
 		this.#transformAddRoundKey(state,r);
 	}
-	
+
+	// Decrypt Mode CBC (Cipher Block Chaining)
+	#decryptModeCBC(state,vector)
+	{
+		let r = this.#Nr;
+		this.#transformAddRoundKey(state,r);
+		for (r = this.#Nr-1; r > 0 ; r--) 
+		{
+			this.#tranformInversShiftRows(state);
+			this.#tranformInversSubByte(state);
+			this.#transformAddRoundKey(state,r);
+			this.#transformInversMixColumn(state);
+		}
+		this.#tranformInversShiftRows(state);
+		this.#tranformInversSubByte(state);
+		this.#transformAddRoundKey(state,r);
+		this.#operationXORForArray(state,vector);
+	}
 	#transformAddRoundKey(state, r)
 	{
 		let j = 0;
