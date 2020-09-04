@@ -242,24 +242,24 @@ class AES{
 		return all_state;
 	}
 
-	#getStateCol(state,col)
-	{
-		let result = [];
-		let Nb = this.#Nb;
-		for (var i = 0; i < Nb; i++) {
-			result[i] = state[col*Nb+i];
-		}
-		return result;
-	}
+	// #getStateCol(state,col)
+	// {
+	// 	let result = [];
+	// 	let Nb = this.#Nb;
+	// 	for (var i = 0; i < Nb; i++) {
+	// 		result[i] = state[col*Nb+i];
+	// 	}
+	// 	return result;
+	// }
 
-	#getStateRow(state,row)
-	{
-		let result = [];
-		for (var i = 0; i < 4; i++) {
-			result[i] = state[row+i*4];
-		}
-		return result;
-	}
+	// #getStateRow(state,row)
+	// {
+	// 	let result = [];
+	// 	for (var i = 0; i < 4; i++) {
+	// 		result[i] = state[row+i*4];
+	// 	}
+	// 	return result;
+	// }
 
 	#rebuild(state)
 	{
@@ -304,14 +304,14 @@ class AES{
 		return cipher;
 	}
 
-	// this still use ECB Mode
 	encrypt(source_data)
 	{
 		this.type_process = 'encrypt';
 		const all_state = this.#getAllStateFrom(source_data);
 		let state = [];
-		let result = [];
-		// sequance process
+		let cipher_blocks = [];
+
+		// Sequance Process
 		for (var i = 0; i < all_state.length; i++) 
 		{
 			state = all_state[i];
@@ -320,27 +320,34 @@ class AES{
 				switch(this.getMode())
 				{
 					case 'ECB' :
-						this.#encryptModeECB(state);
-						break;
+							this.#encryptModeECB(state);
+							break;
+
 					case 'CBC' :
-						let vector = [];
-						if (i == 0)
-							vector = this.getInitialVector();
-						else
-							vector = result[i-1];
-						console.log(vector);
-						this.#encryptModeCBC(state,vector);
-						break;
+							let vector = [];
+							if (i == 0)
+							{
+								vector = this.getInitialVector();
+							}
+							else
+							{
+								vector = cipher_blocks[i-1];
+							}
+							this.#encryptModeCBC(state,vector);
+							break;
+
 					default :
-						return null;
+							return null;
 				}			
-				result[i] = state;
-			} else {
-				result[i] = state;
+				cipher_blocks[i] = state;
+			} 
+			else 
+			{
+				cipher_blocks[i] = state;
 			}
 		}
-		// Encode to base64 for type of source_data is string
-		return (this.type_of_source_data == 'string')?btoa(this.#rebuild(result)):this.#rebuild(result);
+		// Encode to base64 if type of source_data is string
+		return (this.type_of_source_data == 'string')?btoa(this.#rebuild(cipher_blocks)):this.#rebuild(cipher_blocks);
 	}
 
 	// Encrypt Mode ECB (Electronic Code Book)
@@ -382,41 +389,65 @@ class AES{
 	{
 		this.type_process = 'decrypt';
 		const all_state = this.#getAllStateFrom(source_data);
-		let result = [];
-		let temp;
-		const Nb = this.#Nb;
+		let state;
+		let decrypted_blocks = [];
+
+		// Sequence Process
 		for (var i = 0; i < all_state.length; i++) 
 		{
-			if (all_state[i].length < (this.#Nb*4))
+			if (all_state[i].length == (this.#Nb*4))
 			{
-				result[i] = all_state[i];
+				state = all_state[i];
+				switch(this.#mode)
+				{
+					case 'ECB' :
+							this.#decryptModeEBC(state);
+							break;
+					case 'CBC' :
+							break;
+					default :
+							return null;
+				}
+				decrypted_blocks[i] = state;
+			}
+			else
+			{
+				decrypted_blocks[i] = all_state[i];
 				continue;
 			}
-			let r = this.#Nr;
-			// Begin Decrypt
-			temp = this.#transformAddRoundKey(all_state[i],r);
-			for (r = this.#Nr-1; r > 0 ; r--) 
-			{
-				temp = this.#tranformInversShiftRows(temp);
-				temp = this.#tranformInversSubByte(temp);
-				temp = this.#transformAddRoundKey(temp,r);
-				temp = this.#transformInversMixColumn(temp);
-			}
-			temp = this.#tranformInversShiftRows(temp);
-			temp = this.#tranformInversSubByte(temp);
-			temp = this.#transformAddRoundKey(temp,r);
-			// End Decrypt
-			result[i] = temp;
 		}
-		return this.#rebuild(result);
+		return this.#rebuild(decrypted_blocks);
 	}
+
+	#decryptModeEBC(state)
+	{
+		let r = this.#Nr;
+		this.#transformAddRoundKey(state,r);
+		for (r = this.#Nr-1; r > 0 ; r--) 
+		{
+			this.#tranformInversShiftRows(state);
+			this.#tranformInversSubByte(state);
+			this.#transformAddRoundKey(state,r);
+			this.#transformInversMixColumn(state);
+		}
+		this.#tranformInversShiftRows(state);
+		this.#tranformInversSubByte(state);
+		this.#transformAddRoundKey(state,r);
+	}
+	
+	#transformAddRoundKey(state, r)
+	{
+		let j = 0;
+		for (var i = 0; i < state.length; i++) {
+			state[i] = state[i] ^ this.#expansion_key[r*4+Math.floor(i/4)][j++%4];
+		}
+	}	
 
 	#tranformSubByte(state)
 	{
 		for (var i = 0; i < state.length; i++) {
 			state[i] = RINJDAEL_PRESET.SBOX(state[i]);
 		}
-		// return state;
 	}
 
 	#tranformInversSubByte(state)
@@ -424,43 +455,36 @@ class AES{
 		for (var i = 0; i < state.length; i++) {
 			state[i] = RINJDAEL_PRESET.INVERS_SBOX(state[i]);
 		}
-		return state;
 	}
 
 	#tranformShiftRows(state)
 	{
 		let temp = 0;
-		const Nb = this.#Nb;
-
-		for (var i = 1; i < Nb; i++) {
+		for (var i = 1; i < this.#Nb; i++) {
 			for (var j = 0; j < i; j++) {
 				var k = 0;
-				temp = state[i+k*Nb];
-				for (k = 0; k < Nb-1; k++) {
-					state[i+k*Nb] = state[i+(k+1)*4];
+				temp = state[i+k*this.#Nb];
+				for (k = 0; k < this.#Nb-1; k++) {
+					state[i+k*this.#Nb] = state[i+(k+1)*4];
 				}
-				state[i+k*Nb] = temp;
+				state[i+k*this.#Nb] = temp;
 			}
 		}
-		// return state;
 	}
 
 	#tranformInversShiftRows(state)
 	{
-		let temp = 0;
-		const Nb = this.#Nb;
-
-		for (var i = 1; i < Nb; i++) {
+		let temp_value = 0;
+		for (var i = 1; i < this.#Nb; i++) {
 			for (var j = 0; j < i; j++) {
-				var k = Nb-1;
-				temp = state[i+k*Nb];
-				for (k = Nb-1; k > 0; k--) {
-					state[i+k*Nb] = state[i+(k-1)*Nb];
+				var k = this.#Nb-1;
+				temp_value = state[i+k*this.#Nb];
+				for (k = this.#Nb-1; k > 0; k--) {
+					state[i+k*this.#Nb] = state[i+(k-1)*this.#Nb];
 				}
-				state[i+k*Nb] = temp;
+				state[i+k*this.#Nb] = temp_value;
 			}
 		}
-		return state;
 	}
 
 	#transformMixColumn(state)
@@ -490,13 +514,11 @@ class AES{
 		{
 			state[i] = result[i];
 		}
-		// return result;
 	}
 
 	#transformInversMixColumn(state)
 	{
 		let result = [];
-		const Nb = this.#Nb;
 		var k = 0;
 		for (var i = 0; i < state.length; i+=4) 
 		{
@@ -532,17 +554,10 @@ class AES{
 													^state[(i+3+j)%4+i]);
 			}
 		}
-		return result;
-	}
-	
-	#transformAddRoundKey(state, r)	//r for round
-	{
-		// let result = [];
-		let j = 0;
-		for (var i = 0; i < state.length; i++) {
-			state[i] = state[i] ^ this.#expansion_key[r*4+Math.floor(i/4)][j++%4];
+		for (var i = 0; i < result.length; i++)
+		{
+			state[i] = result[i];
 		}
-		// return result;
 	}
 
 	#getRotWord(key_schadule)
