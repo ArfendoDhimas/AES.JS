@@ -128,7 +128,8 @@ class AES{
 				for (var i = 0; i < key.length; i++)
 				{
 					let code = key[i];
-					if (typeof code != 'number' || Math.floor(code) == code || code < 0 || 255 < code)
+					console.log(code);
+					if (typeof code != 'number' || Math.floor(code) != code || code < 0 || 255 < code)
 					{
 						throw 'Unsupported elements on Array. Please use index number of ASCII Code for elements of Array!';
 					}
@@ -278,7 +279,7 @@ class AES{
 				for (var i = 0; i < initial_vector.length; i++)
 				{
 					let code = initial_vector[i];
-					if (typeof code != 'number' || Math.floor(code) == code || code < 0 || 255 < code)
+					if (typeof code != 'number' || Math.floor(code) != code || code < 0 || 255 < code)
 					{
 						throw 'Unsupported elements on Array. Please use index number of ASCII Code for elements of Array!';
 					}
