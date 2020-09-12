@@ -85,14 +85,17 @@ class AES{
 	#notif;
 	#typeof_source_data; #cache_length;
 
-	// Select Mode : 'ECB' and 'CBC'
-	constructor(mode = 'ECB', key = '1234567890abcdef', initial_vector = '1234567890abcdef')
+	
+	// Supported mode 					: "ECB" or "CBC"
+	// Length of key 						: 16, 24 or 32 chars of String or elements Array one dimension
+	// Length of initial_vector : 16 chars of String or elements Array one dimension
+	constructor(mode = 'ECB', key = '!@#qwe1234567890', initial_vector = '!@#qwe1234567890')
 	{
 		this.#notif = {status : false, msg : ''};
 		this.#cache_length = [];
 		this.#Nb = 4;
-		this.setKey(key);
 		this.setMode(mode);
+		this.setKey(key);
 		if (mode == 'CBC')
 		{
 			this.setInitialVector(initial_vector);
@@ -229,6 +232,7 @@ class AES{
 						this.#mode = mode;
 						this.#notif.status = true;
 						this.#notif.msg = 'Success set the Mode.';
+						console.log(this.#notif.msg);
 						return this.#notif.status;
 				default :
 						throw '\"'+mode+'\" is not supported Mode. Please select Mode : \"ECB\" or \"CBC\"!';
@@ -452,6 +456,9 @@ class AES{
 			{
 				result = this.#rebuild(cipher_blocks);
 			}
+			else{
+				throw 'Invalid Source Data.'
+			}
 			this.#notif.status = true;
 			this.#notif.msg = 'Success Encrypt Source Data.';
 			console.log(this.#notif.msg);
@@ -461,7 +468,7 @@ class AES{
 		{
 			this.#notif.status = false;
 			this.#notif.msg = error;
-			console.log(this.#notif.msg);
+			console.error(this.#notif.msg);
 			return this.#notif.status;
 		}
 	}
@@ -557,13 +564,19 @@ class AES{
 			{
 				result = this.#rebuild(decipher_blocks);
 			}
+			else{
+				throw 'Invalid Source Data.'
+			}
+			this.#notif.status = true;
+			this.#notif.msg = 'Success Decrypt Source Data.';
+			console.log(this.#notif.msg);
 			return result;
 		}
 		catch(error)
 		{
 			this.#notif.status = false;
 			this.#notif.msg = error;
-			console.log(this.#notif.msg);
+			console.error(this.#notif.msg);
 			return this.#notif.status;
 		}
 	}
@@ -663,16 +676,16 @@ class AES{
 			for (var j = 0; j < 4; j++) 
 			{
 				result[k++] = 
-							// 0xQQ*0x02
+							// 0x## * 0x02
 							((state[(i+0+j)%4+i]
 									*0x02)%256^((state[(i+0+j)%4+i]>>7==1)?0x1b:0))
-							// 0xQQ*0x03
+							// 0x## * 0x03
 						^ (((state[(i+1+j)%4+i]
 									*0x02)%256^((state[(i+1+j)%4+i]>>7==1)?0x1b:0))
 									^state[(i+1+j)%4+i])
-							// 0xQQ*0x01
+							// 0x## * 0x01
 						^ state[(i+2+j)%4+i]
-							// 0xQQ*0x01
+							// 0x## * 0x01
 						^ state[(i+3+j)%4+i];
 			}
 		}
@@ -691,33 +704,33 @@ class AES{
 			for (var j = 0; j < 4; j++) 
 			{
 				result[k++] = 
-							// 0xQQ*0x0e
+							// 0x## * 0x0e
 							((((((((state[(i+0+j)%4+i]
-													*0x02)%256^((state[(i+0+j)%4+i]>>7==1)?0x1b:0))
-													^state[(i+0+j)%4+i])
-													*0x02)%256^(((((state[(i+0+j)%4+i]*0x02)%256^((state[(i+0+j)%4+i]>>7==1)?0x1b:0))^state[(i+0+j)%4+i])>>7==1)?0x1b:0))
-													^state[(i+0+j)%4+i])
-													*0x02)%256^((((((((state[(i+0+j)%4+i]*0x02)%256^((state[(i+0+j)%4+i]>>7==1)?0x1b:0))^state[(i+0+j)%4+i])*0x02)%256^(((((state[(i+0+j)%4+i]*0x02)%256^((state[(i+0+j)%4+i]>>7==1)?0x1b:0))^state[(i+0+j)%4+i])>>7==1)?0x1b:0))^state[(i+0+j)%4+i])>>7==1)?0x1b:0))
-							// 0xQQ*0x0b
+									*0x02)%256^((state[(i+0+j)%4+i]>>7==1)?0x1b:0))
+									^state[(i+0+j)%4+i])
+									*0x02)%256^(((((state[(i+0+j)%4+i]*0x02)%256^((state[(i+0+j)%4+i]>>7==1)?0x1b:0))^state[(i+0+j)%4+i])>>7==1)?0x1b:0))
+									^state[(i+0+j)%4+i])
+									*0x02)%256^((((((((state[(i+0+j)%4+i]*0x02)%256^((state[(i+0+j)%4+i]>>7==1)?0x1b:0))^state[(i+0+j)%4+i])*0x02)%256^(((((state[(i+0+j)%4+i]*0x02)%256^((state[(i+0+j)%4+i]>>7==1)?0x1b:0))^state[(i+0+j)%4+i])>>7==1)?0x1b:0))^state[(i+0+j)%4+i])>>7==1)?0x1b:0))
+							// 0x## * 0x0b
 						^ ((((((((state[(i+1+j)%4+i]
-													*0x02)%256^((state[(i+1+j)%4+i]>>7==1)?0x1b:0))
-													*0x02)%256^((((state[(i+1+j)%4+i]*0x02)%256^((state[(i+1+j)%4+i]>>7==1)?0x1b:0))>>7==1)?0x1b:0))
-													^state[(i+1+j)%4+i])
-													*0x02)%256^(((((((state[(i+1+j)%4+i]*0x02)%256^((state[(i+1+j)%4+i]>>7==1)?0x1b:0))*0x02)%256^((((state[(i+1+j)%4+i]*0x02)%256^((state[(i+1+j)%4+i]>>7==1)?0x1b:0))>>7==1)?0x1b:0))^state[(i+1+j)%4+i])>>7==1)?0x1b:0))
-													^state[(i+1+j)%4+i])
-							// 0xQQ*0x0d
+									*0x02)%256^((state[(i+1+j)%4+i]>>7==1)?0x1b:0))
+									*0x02)%256^((((state[(i+1+j)%4+i]*0x02)%256^((state[(i+1+j)%4+i]>>7==1)?0x1b:0))>>7==1)?0x1b:0))
+									^state[(i+1+j)%4+i])
+									*0x02)%256^(((((((state[(i+1+j)%4+i]*0x02)%256^((state[(i+1+j)%4+i]>>7==1)?0x1b:0))*0x02)%256^((((state[(i+1+j)%4+i]*0x02)%256^((state[(i+1+j)%4+i]>>7==1)?0x1b:0))>>7==1)?0x1b:0))^state[(i+1+j)%4+i])>>7==1)?0x1b:0))
+									^state[(i+1+j)%4+i])
+							// 0x## * 0x0d
 						^ ((((((((state[(i+2+j)%4+i]
-													*0x02)%256^((state[(i+2+j)%4+i]>>7==1)?0x1b:0))
-													^state[(i+2+j)%4+i])
-													*0x02)%256^(((((state[(i+2+j)%4+i]*0x02)%256^((state[(i+2+j)%4+i]>>7==1)?0x1b:0))^state[(i+2+j)%4+i])>>7==1)?0x1b:0))
-													*0x02)%256^(((((((state[(i+2+j)%4+i]*0x02)%256^((state[(i+2+j)%4+i]>>7==1)?0x1b:0))^state[(i+2+j)%4+i])*0x02)%256^(((((state[(i+2+j)%4+i]*0x02)%256^((state[(i+2+j)%4+i]>>7==1)?0x1b:0))^state[(i+2+j)%4+i])>>7==1)?0x1b:0))>>7==1)?0x1b:0))
-													^state[(i+2+j)%4+i])
-							// 0xQQ*0x09
+									*0x02)%256^((state[(i+2+j)%4+i]>>7==1)?0x1b:0))
+									^state[(i+2+j)%4+i])
+									*0x02)%256^(((((state[(i+2+j)%4+i]*0x02)%256^((state[(i+2+j)%4+i]>>7==1)?0x1b:0))^state[(i+2+j)%4+i])>>7==1)?0x1b:0))
+									*0x02)%256^(((((((state[(i+2+j)%4+i]*0x02)%256^((state[(i+2+j)%4+i]>>7==1)?0x1b:0))^state[(i+2+j)%4+i])*0x02)%256^(((((state[(i+2+j)%4+i]*0x02)%256^((state[(i+2+j)%4+i]>>7==1)?0x1b:0))^state[(i+2+j)%4+i])>>7==1)?0x1b:0))>>7==1)?0x1b:0))
+									^state[(i+2+j)%4+i])
+							// 0x## * 0x09
 						^ (((((((state[(i+3+j)%4+i]
-													*0x02)%256^((state[(i+3+j)%4+i]>>7==1)?0x1b:0))						
-													*0x02)%256^((((state[(i+3+j)%4+i]*0x02)%256^((state[(i+3+j)%4+i]>>7==1)?0x1b:0))>>7==1)?0x1b:0))
-													*0x02)%256^((((((state[(i+3+j)%4+i]*0x02)%256^((state[(i+3+j)%4+i]>>7==1)?0x1b:0))*0x02)%256^((((state[(i+3+j)%4+i]*0x02)%256^((state[(i+3+j)%4+i]>>7==1)?0x1b:0))>>7==1)?0x1b:0))>>7==1)?0x1b:0))
-													^state[(i+3+j)%4+i]);
+									*0x02)%256^((state[(i+3+j)%4+i]>>7==1)?0x1b:0))						
+									*0x02)%256^((((state[(i+3+j)%4+i]*0x02)%256^((state[(i+3+j)%4+i]>>7==1)?0x1b:0))>>7==1)?0x1b:0))
+									*0x02)%256^((((((state[(i+3+j)%4+i]*0x02)%256^((state[(i+3+j)%4+i]>>7==1)?0x1b:0))*0x02)%256^((((state[(i+3+j)%4+i]*0x02)%256^((state[(i+3+j)%4+i]>>7==1)?0x1b:0))>>7==1)?0x1b:0))>>7==1)?0x1b:0))
+									^state[(i+3+j)%4+i]);
 			}
 		}
 		for (var i = 0; i < result.length; i++)
@@ -760,6 +773,10 @@ class AES{
 
 	#addPadding(text)
 	{
+		if (typeof text != 'string')
+		{
+			return null;
+		}
 		var x = this.#Nb*4-(text.length%(this.#Nb*4));
 		for (var i = 0; i < x; i++)
 		{
@@ -770,6 +787,10 @@ class AES{
 
 	#removePadding(text)
 	{
+		if (typeof text != 'string')
+		{
+			return null;
+		}
 		var x = text.length-1;
 		var last_value = text.charCodeAt(x);
 		var counter = 0;
