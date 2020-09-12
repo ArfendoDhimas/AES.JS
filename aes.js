@@ -1,10 +1,10 @@
 // Author			: https://github.com/ArfendoDhimas
 // Reference	: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf
 
-const RINJDAEL_PRESET = {
+var RINJDAEL_PRESET = {
 	SBOX: function(index)
 	{
-		const data = [
+		var data = [
 				0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 				0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
 				0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -27,7 +27,7 @@ const RINJDAEL_PRESET = {
 
 	INVERS_SBOX: function(index)
 	{
-		const data = [
+		var data = [
 				0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
 				0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
 				0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
@@ -50,7 +50,7 @@ const RINJDAEL_PRESET = {
 
 	RCON: function(index)
 	{
-		const data = [
+		var data = [
 				[1,0,0,0],
 				[2,0,0,0],
 				[4,0,0,0],
@@ -69,7 +69,7 @@ const RINJDAEL_PRESET = {
 var utils = {
 	copyArray: function(array)
 	{
-		let temp = []
+		var temp = []
 		for (var i = 0; i < array.length; i++)
 		{
 			temp.push(array[i]);
@@ -111,7 +111,7 @@ class AES{
 	{
 		try
 		{
-			let temp_key = [];
+			var temp_key = [];
 			if (key.length != 16 ^ key.length != 24 ^ key.length != 32)
 			{
 				throw 'Invalid key. The length of Key must be 16, 24 or 32 chars of String or elements of Array!';
@@ -120,7 +120,7 @@ class AES{
 			{
 				for (var i = 0; i < key.length; i++)
 				{
-					let char_code = key.charCodeAt(i);
+					var char_code = key.charCodeAt(i);
 					if (char_code > 255)
 					{
 						throw 'Unsupported chars on String. Please use ASCII charset for Key String!';
@@ -132,7 +132,7 @@ class AES{
 			{
 				for (var i = 0; i < key.length; i++)
 				{
-					let code = key[i];
+					var code = key[i];
 					if (typeof code != 'number' || Math.floor(code) != code || code < 0 || 255 < code)
 					{
 						throw 'Unsupported elements on Array. Please use index number of ASCII Code for elements of Array!';
@@ -181,8 +181,8 @@ class AES{
 	#setExpansionKey(key)
 	{
 		const Nk = Math.floor(key.length/4);
-		let expansion_key = [];
-		let key_schadule = [];
+		var expansion_key = [];
+		var key_schadule = [];
 
 		// generate first expansion_key (4*Nk) from key string
 		var i = 0;
@@ -256,7 +256,7 @@ class AES{
 	{
 		try
 		{
-			let temp_initial_vector = [];
+			var temp_initial_vector = [];
 			if (this.getMode() != 'CBC')
 			{
 				throw 'Your selected Mode (\"'+this.getMode()+'\") doesn\'t need Initial Vector';
@@ -269,7 +269,7 @@ class AES{
 			{
 				for (var i = 0; i < initial_vector.length; i++)
 				{
-					let char_code = initial_vector.charCodeAt(i);
+					var char_code = initial_vector.charCodeAt(i);
 					if (char_code > 255)
 					{
 						throw 'Unsupported chars on String. Please use ASCII charset for Initial Vector String!';
@@ -281,7 +281,7 @@ class AES{
 			{
 				for (var i = 0; i < initial_vector.length; i++)
 				{
-					let code = initial_vector[i];
+					var code = initial_vector[i];
 					if (typeof code != 'number' || Math.floor(code) != code || code < 0 || 255 < code)
 					{
 						throw 'Unsupported elements on Array. Please use index number of ASCII Code for elements of Array!';
@@ -314,8 +314,8 @@ class AES{
 	}
 	
 	#getAllStateFrom(source_data){
-		let all_state = [];
-		let state = [];
+		var all_state = [];
+		var state = [];
 		var x = 0, y = 0;
 		if(this.#typeof_source_data == 'object' || this.#typeof_source_data == 'string')
 		{
@@ -326,7 +326,7 @@ class AES{
 
 				for (var j = 0; j < source_data[i].length; j++)
 				{					
-					let e = source_data[i][j];
+					var e = source_data[i][j];
 					// This is for Array with elements are index number of ASCII Charset
 					if (typeof e == 'number' && Math.floor(e) == e  && 0 <= e && e <= 255)
 					{
@@ -365,13 +365,13 @@ class AES{
 
 	#rebuild(all_state)
 	{
-		let result;
+		var result;
 		if (this.#typeof_source_data == 'object')
 		{
 			result = [];
-			let row = [];
-			let m = 0;
-			let n = 0;
+			var row = [];
+			var m = 0;
+			var n = 0;
 			for (var i = 0; i < all_state.length; i++) {
 				for (var j = 0; j < all_state[i].length; j++) {
 					row.push(all_state[i][j]); n++;
@@ -409,8 +409,8 @@ class AES{
 			}
 			// console.log(source_data);
 			const all_state = this.#getAllStateFrom(source_data);
-			let state = [];
-			let cipher_blocks = [];
+			var state = [];
+			var cipher_blocks = [];
 
 			// Sequance Process
 			for (var i = 0; i < all_state.length; i++) 
@@ -425,7 +425,7 @@ class AES{
 								break;
 
 						case 'CBC' :
-								let vector = [];
+								var vector = [];
 								switch (i)
 								{
 									case 0 :
@@ -446,7 +446,7 @@ class AES{
 					cipher_blocks[i] = state;
 				}
 			}
-			let result;
+			var result;
 			if (this.#typeof_source_data == 'string')
 			{
 				result = this.#rebuild(cipher_blocks);
@@ -476,7 +476,7 @@ class AES{
 	// Encrypt Mode ECB (Electronic Code Book)
 	#encryptModeECB(state)
 	{
-		let r = 0;
+		var r = 0;
 		this.#tAddRoundKey(state,r);
 		for (r = 1; r < this.#Nr; r++) 
 		{
@@ -493,7 +493,7 @@ class AES{
 	// Encrypt Mode CBC (Cipher Block Chaining)
 	#encryptModeCBC(state, vector)
 	{
-		let r = 0;
+		var r = 0;
 		this.#tXOR(state,vector);
 		this.#tAddRoundKey(state,r);
 		for (r = 1; r < this.#Nr; r++) 
@@ -518,8 +518,8 @@ class AES{
 				source_data = atob(source_data); // Decode from base64
 			}
 			const all_state = this.#getAllStateFrom(source_data);
-			let state;
-			let decipher_blocks = [];
+			var state;
+			var decipher_blocks = [];
 
 			// Sequence Process
 			for (var i = 0; i < all_state.length; i++) 
@@ -534,7 +534,7 @@ class AES{
 								break;
 
 						case 'CBC' :
-								let vector = [];
+								var vector = [];
 								switch(i)
 								{
 									case 0 : 
@@ -555,7 +555,7 @@ class AES{
 					decipher_blocks[i] = all_state[i];
 				}
 			}
-			let result;
+			var result;
 			if (this.#typeof_source_data == 'string')
 			{
 				result = this.#removePadding(this.#rebuild(decipher_blocks));
@@ -584,7 +584,7 @@ class AES{
 	// Decrypt Mode ECB (Electronic Code Book)
 	#decryptModeECB(state)
 	{
-		let r = this.#Nr;
+		var r = this.#Nr;
 		this.#tAddRoundKey(state,r);
 		for (r = this.#Nr-1; r > 0 ; r--) 
 		{
@@ -601,7 +601,7 @@ class AES{
 	// Decrypt Mode CBC (Cipher Block Chaining)
 	#decryptModeCBC(state,vector)
 	{
-		let r = this.#Nr;
+		var r = this.#Nr;
 		this.#tAddRoundKey(state,r);
 		for (r = this.#Nr-1; r > 0 ; r--) 
 		{
@@ -615,9 +615,10 @@ class AES{
 		this.#tAddRoundKey(state,r);
 		this.#tXOR(state,vector);
 	}
+
 	#tAddRoundKey(state, r)
 	{
-		let j = 0;
+		var j = 0;
 		for (var i = 0; i < state.length; i++) {
 			state[i] = state[i] ^ this.#expansion_key[r*4+Math.floor(i/4)][j++%4];
 		}
@@ -639,7 +640,7 @@ class AES{
 
 	#tShiftRows(state)
 	{
-		let temp = 0;
+		var temp = 0;
 		for (var i = 1; i < this.#Nb; i++) {
 			for (var j = 0; j < i; j++) {
 				var k = 0;
@@ -654,7 +655,7 @@ class AES{
 
 	#tInversShiftRows(state)
 	{
-		let temp_value = 0;
+		var temp_value = 0;
 		for (var i = 1; i < this.#Nb; i++) {
 			for (var j = 0; j < i; j++) {
 				var k = this.#Nb-1;
@@ -669,7 +670,7 @@ class AES{
 
 	#tMixColumn(state)
 	{
-		let result = [];
+		var result = [];
 		var k = 0;
 		for (var i = 0; i < state.length; i+=4) 
 		{
@@ -697,7 +698,7 @@ class AES{
 
 	#tInversMixColumn(state)
 	{
-		let result = [];
+		var result = [];
 		var k = 0;
 		for (var i = 0; i < state.length; i+=4) 
 		{
@@ -741,7 +742,7 @@ class AES{
 
 	#tRotWord(key_schadule)
 	{
-		let temp = key_schadule[0];
+		var temp = key_schadule[0];
 		var i = 0;
 		while (i < key_schadule.length-1)
 		{
