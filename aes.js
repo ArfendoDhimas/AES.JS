@@ -50,14 +50,27 @@ const RINJDAEL_PRESET = {
 	}
 }
 
+var utils = {
+	copyArray: function(array)
+	{
+		let temp = []
+		for (var i = 0; i < array.length; i++)
+		{
+			temp.push(array[i]);
+		}
+		return temp;
+	}
+}
+
 class AES{
-	#Nb; #Nr; 
-	#key_length; #key; #expansion_key;
+	#Nb;
+	#key; #Nr; #expansion_key;
 	#mode; #initial_vector;
 
+	// Mode : 'ECB' and 'CBC'
 	constructor(mode = 'ECB', key = '1234567890abcdef', initial_vector = '1234567890abcdef')
 	{
-		this.#Nb = 4; // because state 4*4
+		this.#Nb = 4; // because length of state is 4*4
 		this.setKey(key);
 		this.setMode(mode);
 		if (mode == 'CBC')
@@ -68,30 +81,14 @@ class AES{
 
 	setKey(key)
 	{
-		switch(key.length)
+		if (key.length != 16 || key.length != 24 || key.length != 32)
 		{
-			case 16: case 24 : case 32 :
-				this.#key_length = key.length;
-				break;
-			default :
-				this.#key_length = 0;
-				break;
+			return {status : false, msg : 'Invalid key. Key must be 128, 192 or 256 bits!'}
 		}
-		try 
-		{
-			if (this.#key_length == 0)
-			{
-				throw 'Invalid key, key must be 128bits, 192bits or 256bits.';
-			}
-			this.#key = key;
-			this.#Nr = this.#getNumberRotation();
-			this.#expansion_key = this.#getExpansionKey();
-		} 
-		catch (error) 
-		{
-			console.log(error);
-			return error;
-		}
+		this.#key = key;
+		this.#setNumberRotation(key);
+		this.#setExpansionKey(key);
+		return {status : true, msg : ''};
 	}
 
 	getKey()
@@ -99,30 +96,30 @@ class AES{
 		return this.#key;
 	}
 
-	#getNumberRotation()
+	#setNumberRotation(key)
 	{
-		switch (this.#key_length)
+		switch (key.length)
 		{
-			case 16 : return 10;
-			case 24 : return 12;
-			case 32 : return 14;
-			default : return 0; 
+			case 16 : this.#Nr = 10; break;
+			case 24 : this.#Nr = 12; break;
+			case 32 : this.#Nr = 14; break;
+			default : this.#Nr = 0; break;
 		}
 	}
 
-	#getExpansionKey()
+	#setExpansionKey(key)
 	{
-		const Nk = Math.floor(this.#key_length/4);
+		const Nk = Math.floor(key.length/4);
 		let expansion_key = [];
 		let key_schadule = [];
 
-		// generate first expansion_key (4*Nk) from key
+		// generate first expansion_key (4*Nk) from key string
 		var i = 0;
 		do
 		{
 			for (var j = 0; j < 4; j++)
 			{
-				key_schadule.push(this.#key.charCodeAt(4 * i + j));
+				key_schadule.push(key.charCodeAt(4 * i + j));
 			}
 			expansion_key.push(key_schadule);
 			key_schadule = [];
@@ -133,31 +130,37 @@ class AES{
 		i = Nk;
 		while (i < this.#Nb * (this.#Nr + 1))
 		{
-			key_schadule = this.#copyArray(expansion_key[i-1]);
+			key_schadule = utils.copyArray(expansion_key[i-1]);
 
 			if (i % Nk == 0) 
 			{
-				this.#getRotWord(key_schadule);
-				this.#getSubWord(key_schadule);
-				this.#operationXORForArray(key_schadule,RINJDAEL_PRESET.RCON(Math.floor(i/Nk)-1));
+				this.#tRotWord(key_schadule);
+				this.#tSubWord(key_schadule);
+				this.#tXOR(key_schadule,RINJDAEL_PRESET.RCON(Math.floor(i/Nk)-1));
 			}
 			else if (Nk > 6 && i % Nk == 4)
 			{
-				this.#getSubWord(key_schadule);
+				this.#tSubWord(key_schadule);
 			}
 
-			this.#operationXORForArray(key_schadule, expansion_key[i-Nk]);
+			this.#tXOR(key_schadule, expansion_key[i-Nk]);
 			expansion_key.push(key_schadule);
 			key_schadule = [];
 			i++;
 		}
-		return expansion_key;
+		this.#expansion_key = expansion_key;
 	}
 
 	setMode(mode)
 	{
+		if (mode != 'ECB' || mode != 'CBC')
+		{
+			return {status : false, msg : mode+' is not supported Mode. Select Mode : ECB or CBC!'}
+		}
 		this.#mode = mode;
+		return {status : true, msg : ''};
 	}
+
 	getMode()
 	{
 		return this.#mode;
@@ -165,12 +168,40 @@ class AES{
 
 	setInitialVector(initial_vector)
 	{
-		var temp = [];
-		for (var i = 0; i < initial_vector.length; i++)
+		let init_vector = [];
+		if (initial_vector.length != 16)
 		{
-			temp.push(initial_vector.charCodeAt(i));
+			return {status: false, msg :'Length og Initial Vector must be 16 bytes String or 16 elements of Array!'};
 		}
-		this.#initial_vector = temp;
+		if (typeof initial_vector != 'object')
+		{
+			if (typeof initial_vector != 'string')
+			{
+				return {status : false, msg : 'Invalid Initial Vector!'};
+			}
+			for (var i = 0; i < initial_vector.length; i++)
+			{
+				let charCode = initial_vector.charCodeAt(i);
+				if (charCode > 255)
+				{
+					return {status : false, msg : 'Unsupported chars on String! Please use ASCII charset'};
+				}
+				init_vector.push(charCode);
+			}
+			this.#initial_vector = init_vector;
+			return {status: true, msg :''};
+		}
+		for (var i = 0; i < initial_vector; i++)
+		{
+			let code = initial_vector[i];
+			if (Math.floor(code) != code && code < 0 && code > 255)
+			{
+				return {status : false, msg : 'Unsupported elements on Array! Please only use number ASCII index code'};
+			}
+			init_vector.push(code);
+		}
+		this.#initial_vector = init_vector;
+		return {status: true, msg :''};		
 	}
 
 	getInitialVector()
@@ -295,7 +326,7 @@ class AES{
 		// Sequance Process
 		for (var i = 0; i < all_state.length; i++) 
 		{
-			state = this.#copyArray(all_state[i]);
+			state = utils.copyArray(all_state[i]);
 			if (all_state[i].length ==  (this.#Nb*4))
 			{
 				switch(this.getMode())
@@ -334,35 +365,35 @@ class AES{
 	#encryptModeECB(state)
 	{
 		let r = 0;
-		this.#transformAddRoundKey(state,r);
+		this.#tAddRoundKey(state,r);
 		for (r = 1; r < this.#Nr; r++) 
 		{
-			this.#tranformSubByte(state);
-			this.#tranformShiftRows(state);
-			this.#transformMixColumn(state);
-			this.#transformAddRoundKey(state,r);
+			this.#tSubByte(state);
+			this.#tShiftRows(state);
+			this.#tMixColumn(state);
+			this.#tAddRoundKey(state,r);
 		}
-		this.#tranformSubByte(state);
-		this.#tranformShiftRows(state);
-		this.#transformAddRoundKey(state,r);
+		this.#tSubByte(state);
+		this.#tShiftRows(state);
+		this.#tAddRoundKey(state,r);
 	}
 
 	// Encrypt Mode CBC (Cipher Block Chaining)
 	#encryptModeCBC(state, vector)
 	{
 		let r = 0;
-		this.#operationXORForArray(state,vector);
-		this.#transformAddRoundKey(state,r);
+		this.#tXOR(state,vector);
+		this.#tAddRoundKey(state,r);
 		for (r = 1; r < this.#Nr; r++) 
 		{
-			this.#tranformSubByte(state);
-			this.#tranformShiftRows(state);
-			this.#transformMixColumn(state);
-			this.#transformAddRoundKey(state,r);
+			this.#tSubByte(state);
+			this.#tShiftRows(state);
+			this.#tMixColumn(state);
+			this.#tAddRoundKey(state,r);
 		}
-		this.#tranformSubByte(state);
-		this.#tranformShiftRows(state);
-		this.#transformAddRoundKey(state,r);
+		this.#tSubByte(state);
+		this.#tShiftRows(state);
+		this.#tAddRoundKey(state,r);
 	}
 
 	decrypt(source_data)
@@ -375,7 +406,7 @@ class AES{
 		// Sequence Process
 		for (var i = 0; i < all_state.length; i++) 
 		{
-			state = this.#copyArray(all_state[i]);
+			state = utils.copyArray(all_state[i]);
 			if (all_state[i].length == (this.#Nb*4))
 			{
 				switch(this.#mode)
@@ -413,37 +444,37 @@ class AES{
 	#decryptModeECB(state)
 	{
 		let r = this.#Nr;
-		this.#transformAddRoundKey(state,r);
+		this.#tAddRoundKey(state,r);
 		for (r = this.#Nr-1; r > 0 ; r--) 
 		{
-			this.#tranformInversShiftRows(state);
-			this.#tranformInversSubByte(state);
-			this.#transformAddRoundKey(state,r);
-			this.#transformInversMixColumn(state);
+			this.#tInversShiftRows(state);
+			this.#tInversSubByte(state);
+			this.#tAddRoundKey(state,r);
+			this.#tInversMixColumn(state);
 		}
-		this.#tranformInversShiftRows(state);
-		this.#tranformInversSubByte(state);
-		this.#transformAddRoundKey(state,r);
+		this.#tInversShiftRows(state);
+		this.#tInversSubByte(state);
+		this.#tAddRoundKey(state,r);
 	}
 
 	// Decrypt Mode CBC (Cipher Block Chaining)
 	#decryptModeCBC(state,vector)
 	{
 		let r = this.#Nr;
-		this.#transformAddRoundKey(state,r);
+		this.#tAddRoundKey(state,r);
 		for (r = this.#Nr-1; r > 0 ; r--) 
 		{
-			this.#tranformInversShiftRows(state);
-			this.#tranformInversSubByte(state);
-			this.#transformAddRoundKey(state,r);
-			this.#transformInversMixColumn(state);
+			this.#tInversShiftRows(state);
+			this.#tInversSubByte(state);
+			this.#tAddRoundKey(state,r);
+			this.#tInversMixColumn(state);
 		}
-		this.#tranformInversShiftRows(state);
-		this.#tranformInversSubByte(state);
-		this.#transformAddRoundKey(state,r);
-		this.#operationXORForArray(state,vector);
+		this.#tInversShiftRows(state);
+		this.#tInversSubByte(state);
+		this.#tAddRoundKey(state,r);
+		this.#tXOR(state,vector);
 	}
-	#transformAddRoundKey(state, r)
+	#tAddRoundKey(state, r)
 	{
 		let j = 0;
 		for (var i = 0; i < state.length; i++) {
@@ -451,21 +482,21 @@ class AES{
 		}
 	}	
 
-	#tranformSubByte(state)
+	#tSubByte(state)
 	{
 		for (var i = 0; i < state.length; i++) {
 			state[i] = RINJDAEL_PRESET.SBOX(state[i]);
 		}
 	}
 
-	#tranformInversSubByte(state)
+	#tInversSubByte(state)
 	{
 		for (var i = 0; i < state.length; i++) {
 			state[i] = RINJDAEL_PRESET.INVERS_SBOX(state[i]);
 		}
 	}
 
-	#tranformShiftRows(state)
+	#tShiftRows(state)
 	{
 		let temp = 0;
 		for (var i = 1; i < this.#Nb; i++) {
@@ -480,7 +511,7 @@ class AES{
 		}
 	}
 
-	#tranformInversShiftRows(state)
+	#tInversShiftRows(state)
 	{
 		let temp_value = 0;
 		for (var i = 1; i < this.#Nb; i++) {
@@ -495,7 +526,7 @@ class AES{
 		}
 	}
 
-	#transformMixColumn(state)
+	#tMixColumn(state)
 	{
 		let result = [];
 		var k = 0;
@@ -523,7 +554,7 @@ class AES{
 		}
 	}
 
-	#transformInversMixColumn(state)
+	#tInversMixColumn(state)
 	{
 		let result = [];
 		var k = 0;
@@ -567,7 +598,7 @@ class AES{
 		}
 	}
 
-	#getRotWord(key_schadule)
+	#tRotWord(key_schadule)
 	{
 		let temp = key_schadule[0];
 		var i = 0;
@@ -579,12 +610,12 @@ class AES{
 		key_schadule[i] = temp;
 	}
 
-	#getSubWord(key_schadule)
+	#tSubWord(key_schadule)
 	{
-		this.#tranformSubByte(key_schadule);
+		this.#tSubByte(key_schadule);
 	}
 
-	#operationXORForArray(array0, array1)
+	#tXOR(array0, array1)
 	{
 		if (array0.length == array1.length)
 		{
@@ -625,14 +656,6 @@ class AES{
 		}
 	}
 
-	#copyArray(array)
-	{
-		let temp = []
-		for (var i = 0; i < array.length; i++)
-		{
-			temp.push(array[i]);
-		}
-		return temp;
-	}
+	
 
 }
