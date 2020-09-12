@@ -83,11 +83,13 @@ class AES{
 	#key; #Nr; #expansion_key;
 	#mode; #initial_vector;
 	#notif;
+	#typeof_source_data; #cache_length;
 
 	// Select Mode : 'ECB' and 'CBC'
 	constructor(mode = 'ECB', key = '1234567890abcdef', initial_vector = '1234567890abcdef')
 	{
 		this.#notif = {status : false, msg : ''};
+		this.#cache_length = [];
 		this.#Nb = 4;
 		this.setKey(key);
 		this.setMode(mode);
@@ -128,7 +130,6 @@ class AES{
 				for (var i = 0; i < key.length; i++)
 				{
 					let code = key[i];
-					console.log(code);
 					if (typeof code != 'number' || Math.floor(code) != code || code < 0 || 255 < code)
 					{
 						throw 'Unsupported elements on Array. Please use index number of ASCII Code for elements of Array!';
@@ -155,9 +156,7 @@ class AES{
 			this.#notif.msg = error;
 			console.error(this.#notif.msg);
 			return this.#notif.status;
-		}
-
-		
+		}		
 	}
 
 	getKey()
@@ -311,47 +310,38 @@ class AES{
 	}
 	
 	#getAllStateFrom(source_data){
-		this.type_of_source_data = typeof source_data;
-		this.M = source_data.length;								// M baris
-		if(this.type_of_source_data == 'object'){
-			try{
-				this.N = source_data[0].length;					// N kolom
-			} catch(e){
-				this.N = 0; 														// N kolom
-			}
-		} 
-		else if (this.type_of_source_data == 'string')
-		{
-			this.N = 1;																// N kolom
-		}
-		else
-		{
-			this.N = 0;																// N kolom
-		}
-
 		let all_state = [];
 		let state = [];
 		var x = 0, y = 0;
-		if(this.type_of_source_data == 'object' || this.type_of_source_data == 'string')
+		if(this.#typeof_source_data == 'object' || this.#typeof_source_data == 'string')
 		{
-			var temp_data = source_data;
-			if(this.type_of_source_data == 'string' && this.type_process == 'decrypt')
+			for (var i = 0; i < source_data.length; i++) 
 			{
-				temp_data = atob(source_data); //decode base64
-				this.M = temp_data.length;
-			}
-			for (var i = 0; i < this.M; i++) 
-			{
-				for (var j = 0; j < this.N; j++)
+				// This is for rebulid as original Array
+				this.#cache_length[i] = source_data[i].length;
+
+				for (var j = 0; j < source_data[i].length; j++)
 				{					
-					if (typeof temp_data[i][j] != 'undefined')
+					let e = source_data[i][j];
+					// This is for Array with elements are index number of ASCII Charset
+					if (typeof e == 'number' && Math.floor(e) == e  && 0 <= e && e <= 255)
 					{
-						state[y++] = (typeof temp_data[i][j] == 'string') ? temp_data[i][j].charCodeAt(0) : parseInt(temp_data[i][j]);
+						state.push(e); y++;
+					}
+					// This is for String with ASCII Charset
+					else if (typeof e == 'string' && e.length == 1 && e.charCodeAt(0) <= 255)
+					{
+						state.push(e.charCodeAt(0)); y++;
+					}
+					// This is for invalid Source Data
+					else
+					{
+						throw 'Invalid Source Data.';
 					}
 
 					if (y == (this.#Nb * 4))
 					{
-						all_state[x++] = state;
+						all_state.push(state);
 						state = [];
 						y = 0;
 					}
@@ -359,107 +349,121 @@ class AES{
 			}
 			if (y > 0)
 			{
-				if (this.type_of_source_data == 'string') 
-				{
-					// Add Padding to the last state
-					this.#addPadding(state);
-				}
-				all_state[x++] = state;
+				all_state.push(state);
 			}
 		}
 		else 
 		{
-			all_state[0] = state;
+			all_state.push(state);
 		}
 		return all_state;
 	}
 
 	#rebuild(all_state)
 	{
-		let cipher;
-		let temp;
-		let m, n;
-		if (this.type_of_source_data == 'object')
+		let result;
+		if (this.#typeof_source_data == 'object')
 		{
-			cipher = [];
-			temp = [];
-			m = 0;
-			n = 0;
-		}
-		else if (this.type_of_source_data == 'string')
-		{
-			cipher = "";
-		}
-		else
-			return null;
-
-		for (var i = 0; i < all_state.length; i++) {
-			if (i == all_state.length-1 && this.type_of_source_data == 'string')
-			{
-				// Remove Padding when encrypt
-				this.#removePadding(all_state[i]);
-			}
-			for (var j = 0; j < all_state[i].length; j++) {
-				if (this.type_of_source_data == 'object')
-				{
-					temp[n++] = all_state[i][j];
-					if (n == this.N) {
-						cipher[m++] = temp;
-						temp = [];
+			result = [];
+			let row = [];
+			let m = 0;
+			let n = 0;
+			for (var i = 0; i < all_state.length; i++) {
+				for (var j = 0; j < all_state[i].length; j++) {
+					row.push(all_state[i][j]); n++;
+					if (n == this.#cache_length[m]) {
+						result.push(row); m++;
+						row = [];
 						n = 0;
 					}
 				}
-				else if (this.type_of_source_data == 'string')
-					cipher += String.fromCharCode(all_state[i][j]); 
 			}
 		}
-		
-		return cipher;
+		else if (this.#typeof_source_data == 'string')
+		{
+			result = "";
+			for (var i = 0; i < all_state.length; i++) {
+				for (var j = 0; j < all_state[i].length; j++) {
+						result += String.fromCharCode(all_state[i][j]);
+				}
+			}
+		}
+		else
+		{
+			throw 'Type of Source Data is not supported.'
+		}
+		return result;
 	}
 
 	encrypt(source_data)
 	{
-		this.type_process = 'encrypt';
-		const all_state = this.#getAllStateFrom(source_data);
-		let state = [];
-		let cipher_blocks = [];
-
-		// Sequance Process
-		for (var i = 0; i < all_state.length; i++) 
-		{
-			state = utils.copyArray(all_state[i]);
-			if (all_state[i].length ==  (this.#Nb*4))
+		try{
+			this.#typeof_source_data = typeof source_data;
+			if (this.#typeof_source_data == 'string')
 			{
-				switch(this.getMode())
-				{
-					case 'ECB' :
-							this.#encryptModeECB(state);
-							break;
-
-					case 'CBC' :
-							let vector = [];
-							switch (i)
-							{
-								case 0 :
-										vector = this.getInitialVector(); break;
-								default :
-										vector = cipher_blocks[i-1]; break;
-							}
-							this.#encryptModeCBC(state,vector);
-							break;
-
-					default :
-							return null;
-				}			
-				cipher_blocks[i] = state;
-			} 
-			else 
-			{
-				cipher_blocks[i] = state;
+				source_data = this.#addPadding(source_data);
 			}
+			// console.log(source_data);
+			const all_state = this.#getAllStateFrom(source_data);
+			let state = [];
+			let cipher_blocks = [];
+
+			// Sequance Process
+			for (var i = 0; i < all_state.length; i++) 
+			{
+				state = utils.copyArray(all_state[i]);
+				if (all_state[i].length ==  (this.#Nb*4))
+				{
+					switch(this.getMode())
+					{
+						case 'ECB' :
+								this.#encryptModeECB(state);
+								break;
+
+						case 'CBC' :
+								let vector = [];
+								switch (i)
+								{
+									case 0 :
+											vector = this.getInitialVector(); break;
+									default :
+											vector = cipher_blocks[i-1]; break;
+								}
+								this.#encryptModeCBC(state,vector);
+								break;
+
+						default :
+								return null;
+					}			
+					cipher_blocks[i] = state;
+				} 
+				else 
+				{
+					cipher_blocks[i] = state;
+				}
+			}
+			let result;
+			if (this.#typeof_source_data == 'string')
+			{
+				result = this.#rebuild(cipher_blocks);
+				result = btoa(result); // Encode to base64
+			}
+			else if (this.#typeof_source_data == 'object')
+			{
+				result = this.#rebuild(cipher_blocks);
+			}
+			this.#notif.status = true;
+			this.#notif.msg = 'Success Encrypt Source Data.';
+			console.log(this.#notif.msg);
+			return result;
 		}
-		// Encode to base64 if type of source_data is string
-		return (this.type_of_source_data == 'string')?btoa(this.#rebuild(cipher_blocks)):this.#rebuild(cipher_blocks);
+		catch(error)
+		{
+			this.#notif.status = false;
+			this.#notif.msg = error;
+			console.log(this.#notif.msg);
+			return this.#notif.status;
+		}
 	}
 
 	// Encrypt Mode ECB (Electronic Code Book)
@@ -499,46 +503,69 @@ class AES{
 
 	decrypt(source_data)
 	{
-		this.type_process = 'decrypt';
-		const all_state = this.#getAllStateFrom(source_data);
-		let state;
-		let decrypted_blocks = [];
-
-		// Sequence Process
-		for (var i = 0; i < all_state.length; i++) 
+		try
 		{
-			state = utils.copyArray(all_state[i]);
-			if (all_state[i].length == (this.#Nb*4))
+			this.#typeof_source_data = typeof source_data ;
+			if (this.#typeof_source_data == 'string')
 			{
-				switch(this.#mode)
+				source_data = atob(source_data); // Decode from base64
+			}
+			const all_state = this.#getAllStateFrom(source_data);
+			let state;
+			let decipher_blocks = [];
+
+			// Sequence Process
+			for (var i = 0; i < all_state.length; i++) 
+			{
+				state = utils.copyArray(all_state[i]);
+				if (all_state[i].length == (this.#Nb*4))
 				{
-					case 'ECB' :
-							this.#decryptModeECB(state);
-							break;
+					switch(this.#mode)
+					{
+						case 'ECB' :
+								this.#decryptModeECB(state);
+								break;
 
-					case 'CBC' :
-							let vector = [];
-							switch(i)
-							{
-								case 0 : 
-										vector = this.getInitialVector(); break;
-								default :
-										vector = all_state[i-1]; break;
-							}
-							this.#decryptModeCBC(state,vector);
-							break;
+						case 'CBC' :
+								let vector = [];
+								switch(i)
+								{
+									case 0 : 
+											vector = this.getInitialVector(); break;
+									default :
+											vector = all_state[i-1]; break;
+								}
+								this.#decryptModeCBC(state,vector);
+								break;
 
-					default :
-							return null;
+						default :
+								return null;
+					}
+					decipher_blocks[i] = state;
 				}
-				decrypted_blocks[i] = state;
+				else
+				{
+					decipher_blocks[i] = all_state[i];
+				}
 			}
-			else
+			let result;
+			if (this.#typeof_source_data == 'string')
 			{
-				decrypted_blocks[i] = all_state[i];
+				result = this.#removePadding(this.#rebuild(decipher_blocks));
 			}
+			else if (this.#typeof_source_data == 'object')
+			{
+				result = this.#rebuild(decipher_blocks);
+			}
+			return result;
 		}
-		return this.#rebuild(decrypted_blocks);
+		catch(error)
+		{
+			this.#notif.status = false;
+			this.#notif.msg = error;
+			console.log(this.#notif.msg);
+			return this.#notif.status;
+		}
 	}
 
 	// Decrypt Mode ECB (Electronic Code Book)
@@ -731,32 +758,31 @@ class AES{
 		}
 	}
 
-	#addPadding(state)
+	#addPadding(text)
 	{
-		var x = this.#Nb*4-state.length;
+		var x = this.#Nb*4-(text.length%(this.#Nb*4));
 		for (var i = 0; i < x; i++)
 		{
-			state.push(x);
+			text += String.fromCharCode(x);
 		}
+		return text;
 	}
 
-	#removePadding(state)
+	#removePadding(text)
 	{
-		var x = state.length-1;
-		var last_value = state[x];
+		var x = text.length-1;
+		var last_value = text.charCodeAt(x);
 		var counter = 0;
-		while (state[x-1] == last_value)
+		while (text.charCodeAt(x-1) == last_value)
 		{
-			state.pop();
 			x--;
 			counter++;
 		}
-		if (state[x] == counter+1)
+		if (text.charCodeAt(x) == counter+1)
 		{
-			state.pop();
+			text = text.substring(0, text.length-(counter+1));
 		}
+		return text;
 	}
-
-	
 
 }
