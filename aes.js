@@ -805,5 +805,4 @@ class AES{
 		}
 		return text;
 	}
-
 }
