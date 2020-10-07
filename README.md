@@ -1,1 +1,1 @@
-# AdvancedEncryptionStandard_JavaScript (AES.JS)
+# AdvancedEncryptionStandard on JavaScript (AES.JS)
